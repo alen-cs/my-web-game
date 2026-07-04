@@ -124,3 +124,110 @@
                 case 'KeyS': moveBackward = true; break;
                 case 'KeyD': moveRight = true; break;
             }
+        });
+
+        document.addEventListener('keyup', (event) => {
+            switch (event.code) {
+                case 'KeyW': moveForward = false; break;
+                case 'KeyA': moveLeft = false; break;
+                case 'KeyS': moveBackward = false; break;
+                case 'KeyD': moveRight = false; break;
+            }
+        });
+
+        // 6. Shooting Mechanics
+        const bullets = [];
+        let score = 0;
+        const scoreDisplay = document.getElementById('score-display');
+
+        window.addEventListener('mousedown', (event) => {
+            // Only shoot if the mouse is locked (playing the game)
+            if (controls.isLocked && event.button === 0) { // 0 is left click
+                shoot();
+            }
+        });
+
+        function shoot() {
+            // Create bullet
+            const bulletGeo = new THREE.SphereGeometry(0.05, 8, 8);
+            const bulletMat = new THREE.MeshBasicMaterial({ color: 0xffff00 }); // Yellow bullet
+            const bullet = new THREE.Mesh(bulletGeo, bulletMat);
+
+            // Start bullet at the camera's position
+            bullet.position.copy(camera.position);
+
+            // Determine which way the camera is facing
+            const direction = new THREE.Vector3();
+            camera.getWorldDirection(direction);
+
+            // Assign speed and direction to the bullet
+            bullet.velocity = direction.multiplyScalar(30); 
+
+            scene.add(bullet);
+            bullets.push(bullet);
+        }
+
+        // 7. Game Loop
+        const clock = new THREE.Clock();
+        const playerSpeed = 10.0;
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const delta = clock.getDelta();
+
+            // Player Movement
+            if (controls.isLocked === true) {
+                if (moveForward) controls.moveForward(playerSpeed * delta);
+                if (moveBackward) controls.moveForward(-playerSpeed * delta);
+                if (moveRight) controls.moveRight(playerSpeed * delta);
+                if (moveLeft) controls.moveRight(-playerSpeed * delta);
+            }
+
+            // Bullet Movement & Collision Detection
+            const enemyBox = new THREE.Box3().setFromObject(enemy);
+
+            for (let i = bullets.length - 1; i >= 0; i--) {
+                const b = bullets[i];
+                
+                // Move bullet forward
+                b.position.addScaledVector(b.velocity, delta);
+
+                // Check if bullet hits the enemy
+                if (enemyBox.containsPoint(b.position)) {
+                    // Hit detected! Remove bullet.
+                    scene.remove(b);
+                    bullets.splice(i, 1);
+                    
+                    // Increase Score
+                    score++;
+                    scoreDisplay.innerText = `Score: ${score}`;
+
+                    // Teleport enemy to a new random location
+                    const randomX = (Math.random() - 0.5) * 40;
+                    const randomZ = (Math.random() - 0.5) * 40 - 10;
+                    enemy.position.set(randomX, 1, randomZ);
+                    continue; 
+                }
+
+                // Remove bullet if it travels too far (prevents lag)
+                if (b.position.distanceTo(camera.position) > 100) {
+                    scene.remove(b);
+                    bullets.splice(i, 1);
+                }
+            }
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+
+        // Handle window resizing
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+    </script>
+</body>
+</html>
