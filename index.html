@@ -3,24 +3,22 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D FPS - 带枪和射击</title>
+    <title>3D FPS - 生存挑战</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #87CEEB; }
         canvas { display: block; }
-        /* 准星样式 */
         #crosshair {
             position: absolute;
             top: 50%;
             left: 50%;
             width: 8px;
             height: 8px;
-            background-color: #00ff00; /* 绿色准星 */
+            background-color: #00ff00;
             border-radius: 50%;
             transform: translate(-50%, -50%);
             pointer-events: none;
             z-index: 10;
         }
-        /* 提示信息样式 */
         #instructions {
             position: absolute;
             top: 10px;
@@ -32,7 +30,6 @@
             z-index: 10;
             cursor: pointer;
         }
-        /* 分数显示样式 */
         #score-display {
             position: absolute;
             top: 10px;
@@ -44,14 +41,25 @@
             text-shadow: 1px 1px 2px black;
             z-index: 10;
         }
+        /* 新增：生命值显示样式 */
+        #health-display {
+            position: absolute;
+            top: 40px;
+            right: 20px;
+            color: #ff3333;
+            font-size: 24px;
+            font-family: sans-serif;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px black;
+            z-index: 10;
+        }
     </style>
 </head>
 <body>
     <div id="crosshair"></div>
-    <div id="instructions">点击屏幕开始。WASD 移动。鼠标左键射击。</div>
+    <div id="instructions">点击屏幕开始。WASD 移动。鼠标左键射击。<br>注意：避开怪物的攻击！</div>
     <div id="score-display">得分: 0</div>
-
-    <script type="importmap">
+    <div id="health-display">生命值: 100</div> <script type="importmap">
         {
             "imports": {
                 "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
@@ -64,69 +72,64 @@
         import * as THREE from 'three';
         import { PointerLockControls } from 'three/addons/controls/PointerLockControls.js';
 
-        // 1. 初始化场景、相机和渲染器
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x87CEEB); // 天空蓝
+        scene.background = new THREE.Color(0x87CEEB); 
         
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.y = 1.6; // 模拟人眼高度
+        camera.position.y = 1.6; 
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // 2. 添加光照
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.6);
         scene.add(ambientLight);
         const directionalLight = new THREE.DirectionalLight(0xffffff, 0.8);
         directionalLight.position.set(10, 20, 0);
         scene.add(directionalLight);
 
-        // 3. 创建环境 (地板和敌人)
-        const floorGeometry = new THREE.PlaneGeometry(100, 100);
-        const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x228B22 }); // 森林绿
+        const floorGeometry = new THREE.PlaneGeometry(150, 150);
+        const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x228B22 }); 
         const floor = new THREE.Mesh(floorGeometry, floorMaterial);
         floor.rotation.x = -Math.PI / 2;
         scene.add(floor);
 
-        const enemyGeometry = new THREE.BoxGeometry(2, 2, 2);
-        const enemyMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 }); // 红色
-        const enemy = new THREE.Mesh(enemyGeometry, enemyMaterial);
-        enemy.position.set(0, 1, -10);
-        scene.add(enemy);
-
-        // ==========================================
-        // 4. 创建枪的模型 (固定在相机上)
-        // ==========================================
-        const gunGeometry = new THREE.BoxGeometry(0.1, 0.1, 0.6); // 枪的形状 (长方体)
-        const gunMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 }); // 深灰色
+        const gunGeometry = new THREE.BoxGeometry(0.1, 0.1, 0.6);
+        const gunMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 }); 
         const gun = new THREE.Mesh(gunGeometry, gunMaterial);
-        
-        // 将枪放置在屏幕右下角 (相对于相机)
         gun.position.set(0.3, -0.2, -0.5); 
-        camera.add(gun); // 把枪绑定到相机上，这样它会跟着你的视角移动
-        scene.add(camera); // 必须把相机加到场景里，绑定的枪才会显示
+        camera.add(gun); 
+        scene.add(camera); 
 
-        // 5. 设置控制器 (WASD 移动)
+        const enemies = [];
+        const enemyGeometry = new THREE.BoxGeometry(2, 2, 2);
+        const enemyMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
+
+        function spawnEnemy() {
+            const enemy = new THREE.Mesh(enemyGeometry, enemyMaterial);
+            const angle = Math.random() * Math.PI * 2;
+            const radius = 20 + Math.random() * 30; 
+            const x = Math.cos(angle) * radius;
+            const z = Math.sin(angle) * radius;
+            
+            enemy.position.set(x, 1, z);
+            scene.add(enemy);
+            enemies.push(enemy);
+        }
+
+        for (let i = 0; i < 10; i++) {
+            spawnEnemy();
+        }
+
         const controls = new PointerLockControls(camera, document.body);
-        
         const instructions = document.getElementById('instructions');
         
-        // 点击屏幕锁定鼠标进入游戏
         document.body.addEventListener('click', () => {
-            if (!controls.isLocked) {
-                controls.lock();
-            }
+            if (!controls.isLocked) controls.lock();
         });
 
-        controls.addEventListener('lock', function () {
-            instructions.style.display = 'none';
-        });
-
-        controls.addEventListener('unlock', function () {
-            instructions.style.display = 'block';
-        });
-
+        controls.addEventListener('lock', () => instructions.style.display = 'none');
+        controls.addEventListener('unlock', () => instructions.style.display = 'block');
         scene.add(controls.getObject());
 
         let moveForward = false, moveBackward = false, moveLeft = false, moveRight = false;
@@ -139,7 +142,6 @@
                 case 'KeyD': moveRight = true; break;
             }
         });
-
         document.addEventListener('keyup', (event) => {
             switch (event.code) {
                 case 'KeyW': moveForward = false; break;
@@ -149,104 +151,33 @@
             }
         });
 
-        // ==========================================
-        // 6. 射击逻辑
-        // ==========================================
         const bullets = [];
         let score = 0;
         const scoreDisplay = document.getElementById('score-display');
+        
+        // 新增：玩家生命值和受伤冷却时间变量
+        let playerHealth = 100;
+        let lastDamageTime = 0;
+        const healthDisplay = document.getElementById('health-display');
 
-        // 监听鼠标左键点击
         window.addEventListener('mousedown', (event) => {
-            // 只有当鼠标被锁定（即在游戏状态中），且点击的是左键(0)时才射击
-            if (controls.isLocked && event.button === 0) { 
-                shoot();
-            }
+            if (controls.isLocked && event.button === 0) shoot();
         });
 
         function shoot() {
-            // 创造子弹
-            const bulletGeo = new THREE.SphereGeometry(0.05, 8, 8); // 小圆球
-            const bulletMat = new THREE.MeshBasicMaterial({ color: 0xffff00 }); // 黄色
+            const bulletGeo = new THREE.SphereGeometry(0.05, 8, 8);
+            const bulletMat = new THREE.MeshBasicMaterial({ color: 0xffff00 }); 
             const bullet = new THREE.Mesh(bulletGeo, bulletMat);
 
-            // 子弹的初始位置和相机（玩家）一样
             bullet.position.copy(camera.position);
 
-            // 获取相机面朝的方向
             const direction = new THREE.Vector3();
             camera.getWorldDirection(direction);
 
-            // 给子弹赋予速度和方向
-            bullet.velocity = direction.multiplyScalar(40); // 40是子弹速度
-
+            bullet.velocity = direction.multiplyScalar(120); 
             scene.add(bullet);
             bullets.push(bullet);
         }
 
-        // 7. 游戏循环 (动画和逻辑更新)
-        const clock = new THREE.Clock();
-        const playerSpeed = 10.0;
-
-        function animate() {
-            requestAnimationFrame(animate);
-            const delta = clock.getDelta();
-
-            // 处理玩家移动
-            if (controls.isLocked === true) {
-                if (moveForward) controls.moveForward(playerSpeed * delta);
-                if (moveBackward) controls.moveForward(-playerSpeed * delta);
-                if (moveRight) controls.moveRight(playerSpeed * delta);
-                if (moveLeft) controls.moveRight(-playerSpeed * delta);
-            }
-
-            // ==========================================
-            // 处理子弹移动与碰撞检测
-            // ==========================================
-            // 获取敌人的碰撞包围盒
-            const enemyBox = new THREE.Box3().setFromObject(enemy);
-
-            for (let i = bullets.length - 1; i >= 0; i--) {
-                const b = bullets[i];
-                
-                // 让子弹向前飞
-                b.position.addScaledVector(b.velocity, delta);
-
-                // 检测子弹是否打中了敌人
-                if (enemyBox.containsPoint(b.position)) {
-                    // 打中了！移除子弹
-                    scene.remove(b);
-                    bullets.splice(i, 1);
-                    
-                    // 增加分数
-                    score++;
-                    scoreDisplay.innerText = `得分: ${score}`;
-
-                    // 将敌人传送到新的随机位置
-                    const randomX = (Math.random() - 0.5) * 40;
-                    const randomZ = (Math.random() - 0.5) * 40 - 10; // 确保主要在玩家前方
-                    enemy.position.set(randomX, 1, randomZ);
-                    continue; 
-                }
-
-                // 如果子弹飞得太远了，就删掉它（防止游戏卡顿）
-                if (b.position.distanceTo(camera.position) > 100) {
-                    scene.remove(b);
-                    bullets.splice(i, 1);
-                }
-            }
-
-            renderer.render(scene, camera);
-        }
-
-        animate();
-
-        // 处理窗口大小改变
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-    </script>
-</body>
-</html>
+        // 重置游戏函数
+        function resetGame() {
