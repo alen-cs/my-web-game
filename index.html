@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simple 3D FPS Foundation</title>
+    <title>3D FPS - Shooting Mechanics</title>
     <style>
         body { margin: 0; overflow: hidden; background-color: #87CEEB; }
         canvas { display: block; }
@@ -11,12 +11,13 @@
             position: absolute;
             top: 50%;
             left: 50%;
-            width: 10px;
-            height: 10px;
-            background-color: white;
+            width: 8px;
+            height: 8px;
+            background-color: #00ff00;
             border-radius: 50%;
             transform: translate(-50%, -50%);
             pointer-events: none;
+            z-index: 10;
         }
         #instructions {
             position: absolute;
@@ -26,12 +27,25 @@
             font-family: sans-serif;
             font-weight: bold;
             text-shadow: 1px 1px 2px black;
+            z-index: 10;
+        }
+        #score-display {
+            position: absolute;
+            top: 10px;
+            right: 20px;
+            color: white;
+            font-size: 24px;
+            font-family: sans-serif;
+            font-weight: bold;
+            text-shadow: 1px 1px 2px black;
+            z-index: 10;
         }
     </style>
 </head>
 <body>
     <div id="crosshair"></div>
-    <div id="instructions">Click to play. Use WASD to move. Mouse to look.</div>
+    <div id="instructions">Click to play. WASD to move. Left Click to shoot.</div>
+    <div id="score-display">Score: 0</div>
 
     <script type="importmap">
         {
@@ -48,10 +62,10 @@
 
         // 1. Setup Scene, Camera, and Renderer
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0x87CEEB); // Sky blue
+        scene.background = new THREE.Color(0x87CEEB);
         
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        camera.position.y = 1.6; // Approximate player height
+        camera.position.y = 1.6; 
 
         const renderer = new THREE.WebGLRenderer({ antialias: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -64,83 +78,49 @@
         directionalLight.position.set(10, 20, 0);
         scene.add(directionalLight);
 
-        // 3. Create Environment (Floor & "Enemy" Target)
+        // 3. Create Environment
         const floorGeometry = new THREE.PlaneGeometry(100, 100);
-        const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x228B22 }); // Forest green
+        const floorMaterial = new THREE.MeshStandardMaterial({ color: 0x228B22 }); 
         const floor = new THREE.Mesh(floorGeometry, floorMaterial);
         floor.rotation.x = -Math.PI / 2;
         scene.add(floor);
 
         const enemyGeometry = new THREE.BoxGeometry(2, 2, 2);
-        const enemyMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 }); // Red
+        const enemyMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
         const enemy = new THREE.Mesh(enemyGeometry, enemyMaterial);
-        enemy.position.set(0, 1, -10); // Placed in front of the player
+        enemy.position.set(0, 1, -10);
         scene.add(enemy);
 
-        // 4. Setup Controls (FPS style)
+        // 4. Create the Gun Model (Attached to Camera)
+        const gunGeometry = new THREE.BoxGeometry(0.1, 0.1, 0.6);
+        const gunMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 });
+        const gun = new THREE.Mesh(gunGeometry, gunMaterial);
+        // Position the gun to the bottom right of the screen
+        gun.position.set(0.3, -0.2, -0.5); 
+        camera.add(gun);
+        scene.add(camera); // Must add camera to scene for attached objects to render
+
+        // 5. Setup Controls
         const controls = new PointerLockControls(camera, document.body);
         
-        document.addEventListener('click', () => {
+        document.getElementById('instructions').addEventListener('click', () => {
             controls.lock();
+        });
+        document.body.addEventListener('click', () => {
+            if (!controls.isLocked) controls.lock();
         });
 
         scene.add(controls.getObject());
 
-        // Movement logic variables
         let moveForward = false;
         let moveBackward = false;
         let moveLeft = false;
         let moveRight = false;
 
-        const onKeyDown = function (event) {
+        document.addEventListener('keydown', (event) => {
             switch (event.code) {
                 case 'KeyW': moveForward = true; break;
                 case 'KeyA': moveLeft = true; break;
                 case 'KeyS': moveBackward = true; break;
                 case 'KeyD': moveRight = true; break;
             }
-        };
-
-        const onKeyUp = function (event) {
-            switch (event.code) {
-                case 'KeyW': moveForward = false; break;
-                case 'KeyA': moveLeft = false; break;
-                case 'KeyS': moveBackward = false; break;
-                case 'KeyD': moveRight = false; break;
-            }
-        };
-
-        document.addEventListener('keydown', onKeyDown);
-        document.addEventListener('keyup', onKeyUp);
-
-        // 5. Game Loop
-        const clock = new THREE.Clock();
-        const speed = 10.0;
-
-        function animate() {
-            requestAnimationFrame(animate);
-
-            const delta = clock.getDelta();
-
-            if (controls.isLocked === true) {
-                // Move player based on key presses
-                if (moveForward) controls.moveForward(speed * delta);
-                if (moveBackward) controls.moveForward(-speed * delta);
-                if (moveRight) controls.moveRight(speed * delta);
-                if (moveLeft) controls.moveRight(-speed * delta);
-            }
-
-            renderer.render(scene, camera);
-        }
-
-        animate();
-
-        // Handle window resizing
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-    </script>
-</body>
-</html>
